@@ -120,11 +120,36 @@ public:
         HandleScope scope;
         baton_t *baton = static_cast<baton_t *>(req->data);
         baton->hw->Unref();
-        
+
+
         Local<Value> argv[1];
-        
-        argv[0] = String::New("Hello World");
-        
+
+        Local<Object> obj = Object::New();
+
+        // these will be the fields from the event
+        obj->Set(String::NewSymbol("time"), String::New("2:22"));
+        obj->Set(String::NewSymbol("userId"), String::New("default_user"));
+        obj->Set(String::NewSymbol("wirelessSignalStatus"),  Number::New(2));
+        obj->Set(String::NewSymbol("blink"),  Number::New(0.10f));
+        obj->Set(String::NewSymbol("winkLeft"),  Number::New(0.10f));
+        obj->Set(String::NewSymbol("winkRight"),  Number::New(0.10f));
+        obj->Set(String::NewSymbol("lookLeft"),  Number::New(0.10f));
+        obj->Set(String::NewSymbol("lookRight"),  Number::New(0.10f));
+        obj->Set(String::NewSymbol("eyebrow"), Number::New(0.10f));
+        obj->Set(String::NewSymbol("furrow"),  Number::New(0.10f));
+        obj->Set(String::NewSymbol("smile"),  Number::New(0.10f));
+        obj->Set(String::NewSymbol("clench"),  Number::New(0.10f));
+        obj->Set(String::NewSymbol("smirkLeft"),  Number::New(0.10f));
+        obj->Set(String::NewSymbol("smirkRight"),  Number::New(0.10f));
+        obj->Set(String::NewSymbol("laugh"),  Number::New(0.10f));
+        obj->Set(String::NewSymbol("shortTermExcitement"),  Number::New(0.10f));
+        obj->Set(String::NewSymbol("longTermExcitement"),  Number::New(0.10f));
+        obj->Set(String::NewSymbol("engagementOrBoredom"),  Number::New(0.10f));
+        obj->Set(String::NewSymbol("cognitivAction"),  Number::New(6));
+        obj->Set(String::NewSymbol("cognitivPower"),  Number::New(0.50f));
+
+        argv[0] = obj;
+
         TryCatch try_catch;
         
         baton->hw->cb->Call(Context::GetCurrent()->Global(), 1, argv);

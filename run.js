@@ -4,10 +4,10 @@ hi = new m.NodeEPOCDriver();
 
 var count = 0;
 
-hi.connect(function(arg){
-           console.log(arg);
-           if (count > 5)
-                hi.disconnect();
-           count++;
-           });
+hi.connect(function(e){
+   console.log('time:', e.time,' action: ', e.cognitivAction, ' power: '+ e.cognitivPower);
+   if (count > 5)
+        hi.disconnect();
+   count++;
+});
 
