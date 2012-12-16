@@ -1,5 +1,16 @@
 {
     "name": "emojs",
-    "version": "1.0.0",
+    "version": "0.0.1",
+    "private": false,
+    "keywords": ["emotiv", "epoc", "sdk"],
+     "repository": {
+        "type": "git",
+        "url": "git@github.com:jleibund/emojs"
+    },
+    "optionalDependencies": {},
+    "engines": {
+    "node": "*"
+    },
     "cpu": ["ia32"]
 }
+
