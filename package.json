@@ -10,7 +10,6 @@
     "optionalDependencies": {},
     "engines": {
     "node": "*"
-    },
-    "cpu": ["ia32"]
+    }
 }
 
