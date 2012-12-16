@@ -36,7 +36,10 @@ private:
   unsigned int userID;
   char * profile;
   uv_loop_t* loop;
+  uv_loop_t* work;
   uv_timer_t timer;
+  uv_idle_t idler;
+  uv_async_t g_async;
   Persistent<Function> cb;
 public:
 
@@ -61,7 +64,10 @@ public:
   NodeEPOCDriver() :
     connected(0), userID(0)
   {
+      work = uv_loop_new();
       loop = uv_default_loop();
+//      loop = uv_loop_new();
+//      work = uv_default_loop();
   }
 
   ~NodeEPOCDriver()
@@ -156,15 +162,23 @@ public:
                // printf("connecting to epoc event loop: %i using profile %s\n",connect);
                 hw->cb = Persistent<Function>::New(cb);
                 hw->timer.data = hw;
+                hw->idler.data = hw;
                 uv_timer_init(hw->loop, &hw->timer);
-                uv_timer_start(&hw->timer, &hw->timer_cb,50,100);
+                uv_ref((uv_handle_t *)&hw->g_async);
+                uv_timer_start(&hw->timer, &hw->timer_cb,1,1);
+
+//                uv_idle_init(hw->loop, &hw->idler);
+//                uv_idle_start(&hw->idler, &hw->timer_cb);
                 hw->connected = 1;
+
+//                uv_run(hw->loop);
             } else {
                 cout << "error connecting" << endl;
             }
         }
         return Undefined();
     }
+//    static void timer_cb(uv_timer_t* timer, int stat){
     static void timer_cb(uv_timer_t* timer, int stat){
 
         NodeEPOCDriver* hw = static_cast<NodeEPOCDriver*>(timer->data);
@@ -176,7 +190,8 @@ public:
         req->data = baton;
         hw->Ref();
         
-        int status = uv_queue_work(hw->loop, req, process, after_process);
+        int status = uv_queue_work(hw->work, req, process, after_process);
+        uv_run_once(hw->work);
         assert(status == 0);
 
     }
@@ -186,7 +201,8 @@ public:
         if (hw->connected == 1){
             cout << "disconnected from epoc event loop" << endl;
             uv_timer_stop(&hw->timer);
-            uv_unref((uv_handle_t*)hw->loop);
+         //   uv_close((uv_handle_t*)&hw->timer);
+            uv_unref((uv_handle_t *)&hw->g_async);
             if (hw->profile)
                 delete[] hw->profile;
             hw->connected = 0;
