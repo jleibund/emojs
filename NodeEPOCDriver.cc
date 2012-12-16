@@ -164,7 +164,7 @@ public:
                 hw->timer.data = hw;
                 hw->idler.data = hw;
                 uv_timer_init(hw->loop, &hw->timer);
-                uv_ref((uv_handle_t *)&hw->g_async);
+//                uv_ref((uv_handle_t *)&hw->g_async);
                 uv_timer_start(&hw->timer, &hw->timer_cb,1,1);
 
 //                uv_idle_init(hw->loop, &hw->idler);
@@ -202,7 +202,7 @@ public:
             cout << "disconnected from epoc event loop" << endl;
             uv_timer_stop(&hw->timer);
          //   uv_close((uv_handle_t*)&hw->timer);
-            uv_unref((uv_handle_t *)&hw->g_async);
+//            uv_unref((uv_handle_t *)&hw->g_async);
             if (hw->profile)
                 delete[] hw->profile;
             hw->connected = 0;
