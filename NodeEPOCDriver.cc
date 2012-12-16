@@ -34,8 +34,6 @@ class NodeEPOCDriver: ObjectWrap
 private:
   int connected;
   unsigned int userID;
-  unsigned short composerPort;
-  int option;
   char * profile;
   uv_loop_t* loop;
   uv_timer_t timer;
@@ -61,7 +59,7 @@ public:
   }
 
   NodeEPOCDriver() :
-    connected(0), userID(0), composerPort(1726), option(0)
+    connected(0), userID(0)
   {
       loop = uv_default_loop();
   }
@@ -69,6 +67,7 @@ public:
   ~NodeEPOCDriver()
   {
   }
+
     struct baton_t {
         NodeEPOCDriver *hw;
         bool update;
@@ -79,6 +78,16 @@ public:
         int winkRight;
         int lookLeft;
         int lookRight;
+        float eyebrow;
+        float furrow;
+        float smile;
+        float clench;
+        float smirkLeft;
+        float smirkRight;
+        float laugh;
+        float shortTermExcitement;
+        float longTermExcitement;
+        float engagementOrBoredom;
         float timestamp;
     };
 
@@ -94,19 +103,27 @@ public:
 
         NodeEPOCDriver* hw = ObjectWrap::Unwrap<NodeEPOCDriver>(args.This());
 
-        // convert it to string
-
         REQ_STRING_ARG(0,param0);
         REQ_FUN_ARG(1, cb);
 
         string profileFile = string(*param0);
+
+        int option = 0;
+        // get the option for engine or remote connect
+        if (args.Length()==3 && args[2]->IsInt32()){
+            Local<Integer> i = Local<Integer>::Cast(args[2]);
+            int selected = (int)(i->Int32Value());
+            if (selected != 0){
+                option = 1;
+            }
+        }
 
         // read arg for option, engine or remote..
         // read option for profile
         if (hw->connected == 0){
 
             bool connect = false;
-            switch(hw->option){
+            switch(option){
                 case 0: {
                     connect= (EE_EngineConnect() == EDK_OK);
                     break;
@@ -203,6 +220,27 @@ public:
                     baton->winkRight = ES_ExpressivIsRightWink(eState);
                     baton->lookLeft = ES_ExpressivIsLookingLeft(eState);
                     baton->lookRight = ES_ExpressivIsLookingRight(eState);
+                    std::map<EE_ExpressivAlgo_t, float> expressivStates;
+                    EE_ExpressivAlgo_t upperFaceAction = ES_ExpressivGetUpperFaceAction(eState);
+                    float			   upperFacePower  = ES_ExpressivGetUpperFaceActionPower(eState);
+                    EE_ExpressivAlgo_t lowerFaceAction = ES_ExpressivGetLowerFaceAction(eState);
+                    float			   lowerFacePower  = ES_ExpressivGetLowerFaceActionPower(eState);
+                    expressivStates[ upperFaceAction ] = upperFacePower;
+                    expressivStates[ lowerFaceAction ] = lowerFacePower;
+                    baton->eyebrow= expressivStates[ EXP_EYEBROW ];
+                    baton->furrow= expressivStates[ EXP_FURROW ]; // furrow
+                    baton->smile= expressivStates[ EXP_SMILE ]; // smile
+                    baton->clench= expressivStates[ EXP_CLENCH ]; // clench
+                    baton->smirkLeft= expressivStates[ EXP_SMIRK_LEFT  ]; // smirk left
+                    baton->smirkRight= expressivStates[ EXP_SMIRK_RIGHT ]; // smirk right
+                    baton->laugh= expressivStates[ EXP_LAUGH       ]; // laugh
+
+                    // Affectiv Suite results
+                    baton->shortTermExcitement= ES_AffectivGetExcitementShortTermScore(eState);
+                    baton->longTermExcitement= ES_AffectivGetExcitementLongTermScore(eState);
+
+                    baton->engagementOrBoredom= ES_AffectivGetEngagementBoredomScore(eState);
+
                     baton->update = true;
                 }
             }
@@ -233,16 +271,16 @@ public:
             obj->Set(String::NewSymbol("winkRight"),  Number::New(baton->winkRight));
             obj->Set(String::NewSymbol("lookLeft"),  Number::New(baton->lookLeft));
             obj->Set(String::NewSymbol("lookRight"),  Number::New(baton->lookRight));
-    //        obj->Set(String::NewSymbol("eyebrow"), Number::New(0.10f));
-    //        obj->Set(String::NewSymbol("furrow"),  Number::New(0.10f));
-    //        obj->Set(String::NewSymbol("smile"),  Number::New(0.10f));
-    //        obj->Set(String::NewSymbol("clench"),  Number::New(0.10f));
-    //        obj->Set(String::NewSymbol("smirkLeft"),  Number::New(0.10f));
-    //        obj->Set(String::NewSymbol("smirkRight"),  Number::New(0.10f));
-    //        obj->Set(String::NewSymbol("laugh"),  Number::New(0.10f));
-    //        obj->Set(String::NewSymbol("shortTermExcitement"),  Number::New(0.10f));
-    //        obj->Set(String::NewSymbol("longTermExcitement"),  Number::New(0.10f));
-    //        obj->Set(String::NewSymbol("engagementOrBoredom"),  Number::New(0.10f));
+            obj->Set(String::NewSymbol("eyebrow"), Number::New(baton->eyebrow));
+            obj->Set(String::NewSymbol("furrow"),  Number::New(baton->furrow));
+            obj->Set(String::NewSymbol("smile"),  Number::New(baton->smile));
+            obj->Set(String::NewSymbol("clench"),  Number::New(baton->clench));
+            obj->Set(String::NewSymbol("smirkLeft"),  Number::New(baton->smirkLeft));
+            obj->Set(String::NewSymbol("smirkRight"),  Number::New(baton->smirkRight));
+            obj->Set(String::NewSymbol("laugh"),  Number::New(baton->laugh));
+            obj->Set(String::NewSymbol("shortTermExcitement"),  Number::New(baton->shortTermExcitement));
+            obj->Set(String::NewSymbol("longTermExcitement"),  Number::New(baton->longTermExcitement));
+            obj->Set(String::NewSymbol("engagementOrBoredom"),  Number::New(baton->engagementOrBoredom));
             obj->Set(String::NewSymbol("cognitivAction"),  Number::New(baton->cog));
             obj->Set(String::NewSymbol("cognitivPower"),  Number::New(baton->cog_power));
 
