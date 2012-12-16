@@ -1,14 +1,12 @@
 emojs
 =====
 
-nodejs driver for emotiv epoc events
+nodejs driver for emotiv epoc events, see run.js for usage
 
 npm install
+node run.js
 
-node run.js 
-
-tests the object creation, connect and disconnect callbacks
-
+You must own the SDK version of the Emotiv EPOC to build and use this library.
 
 
 
