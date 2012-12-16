@@ -278,6 +278,8 @@ public:
 
         if (baton->update){
 
+            cout<<"update!"<<endl;
+
             // these will be the fields from the event
             obj->Set(String::NewSymbol("time"), Number::New(baton->timestamp));
             obj->Set(String::NewSymbol("userId"), Number::New(baton->hw->userID));
