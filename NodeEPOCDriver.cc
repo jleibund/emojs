@@ -34,6 +34,7 @@ class NodeEPOCDriver: ObjectWrap
 private:
   int connected;
   unsigned int userID;
+  int run;
   char * profile;
   uv_loop_t* loop;
   uv_loop_t* work;
@@ -63,7 +64,7 @@ public:
   }
 
   NodeEPOCDriver() :
-    connected(0), userID(0)
+    connected(0), userID(0), run(0)
   {
       work = uv_loop_new();
       loop = uv_default_loop();
@@ -172,9 +173,12 @@ public:
                 uv_work_t *req = new uv_work_t();
                  req->data = hw;
 //                uv_thread_create(&hw->thread, timer_cb, &hw);
+                hw->run=1;
 
                 cout << "before work" <<endl;
                 int status = uv_queue_work(hw->loop, req, timer_cb, after_timer);
+                assert(status == 0);
+
                 cout << "after work" <<endl;
 
 //                uv_idle_init(hw->loop, &hw->idler);
@@ -200,7 +204,7 @@ public:
 
 //        NodeEPOCDriver* hw = static_cast<NodeEPOCDriver*>(timer->data);
 
-        while (true){
+//        if (hw->run ==1){
 
             if (hw->connected == 1){
                 EmoEngineEventHandle eEvent = EE_EmoEngineEventCreate();
@@ -258,7 +262,7 @@ public:
                 }
                 EE_EmoStateFree(eState);
                 EE_EmoEngineEventFree(eEvent);
-            }
+//            }
            // hw->Ref();
 
 //sleep(1);
@@ -266,14 +270,21 @@ public:
         }
     }
     static void after_timer(uv_work_t* req) {
-                    cout << "after timer" <<endl;
-
+  //                  cout << "after timer" <<endl;
+        NodeEPOCDriver *hw = static_cast<NodeEPOCDriver *>(req->data);
+        if (hw->run ==1){
+     //       sleep(1);
+            int status = uv_queue_work(hw->loop, req, timer_cb, after_timer);
+            assert(status == 0);
+        }
     }
 
     static Handle<Value> disconnect(const Arguments& args){
         NodeEPOCDriver* hw = ObjectWrap::Unwrap<NodeEPOCDriver>(args.This());
         if (hw->connected == 1){
             cout << "disconnected from epoc event loop" << endl;
+
+            hw->run=0;
 
 //            uv_thread_join(&hw->thread);
 
@@ -292,7 +303,7 @@ public:
     
     static void process(uv_work_t* req)
     {
-        baton_t *baton = static_cast<baton_t *>(req->data);
+//        baton_t *baton = static_cast<baton_t *>(req->data);
 //        NodeEPOCDriver* hw = baton->hw;
 //        baton->update = false;
 //        if (hw->connected == 1){
