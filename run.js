@@ -1,4 +1,4 @@
-var m = require('./build/Release/emojs'), fs = require('fs');
+var m = require('./build/Release/emojs');
 
 hi = new m.NodeEPOCDriver();
 

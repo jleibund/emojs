@@ -35,14 +35,8 @@ private:
   int connected;
   unsigned int userID;
   int run;
-  char * profile;
-  uv_async_t async;
   uv_loop_t* loop;
   uv_loop_t* work;
-  uv_thread_t thread;
-  uv_timer_t timer;
-  uv_idle_t idler;
-  //uv_async_t g_async;
   Persistent<Function> cb;
 public:
 
@@ -69,8 +63,6 @@ public:
   {
       work = uv_loop_new();
       loop = uv_default_loop();
-//      loop = uv_loop_new();
-//      work = uv_default_loop();
   }
 
   ~NodeEPOCDriver()
@@ -148,69 +140,40 @@ public:
 
             if (connect){
                 // read in the profile
-                ifstream::pos_type size;
-                ifstream file (profileFile.c_str());
-                if (file.is_open()){
-                    size = file.tellg();
-                    hw->profile = new char [size];
-                    file.seekg (0, ios::beg);
-                    file.read (hw->profile, size);
-                    file.close();
-
-                    EE_SetUserProfile(hw->userID, (unsigned char*)hw->profile, (int)size);
+                int error = EE_LoadUserProfile(hw->userID, profileFile.c_str());
+                if (error == 0){
                     cout << "opened profile: "<<profileFile << endl;
 
+                    unsigned long activeActions = 0;
+                    EE_CognitivGetActiveActions(hw->userID, &activeActions);
+
+                    cout << "active actions: " << activeActions << endl;
+
                 } else {
-                    cout << "could not open profile file:" <<profileFile <<endl;
+                    cout << "error: "<< error << " could not open profile:" <<profileFile <<endl;
                 }
 
-               // printf("connecting to epoc event loop: %i using profile %s\n",connect);
                 hw->cb = Persistent<Function>::New(cb);
-                hw->timer.data = hw;
-                hw->idler.data = hw;
-//                uv_timer_init(hw->loop, &hw->timer);
-//                uv_ref((uv_handle_t *)&hw->g_async);
-//                uv_timer_start(&hw->timer, &hw->timer_cb,1,1);
                 uv_work_t *req = new uv_work_t();
-                 req->data = hw;
-//                uv_thread_create(&hw->thread, timer_cb, &hw);
+                req->data = hw;
                 hw->run=1;
 
-//                cout << "before work" <<endl;
-
-//                uv_work_t *req3 = new uv_work_t();
-//                req3->data = hw;
-//                uv_queue_work(hw->work, req3, runwork, process);
-
-                int status = uv_queue_work(hw->loop, req, timer_cb, after_timer);
+                int status = uv_queue_work(hw->loop, req, work_cb, after_work);
                 assert(status == 0);
 
                 cout << "starting epoc event loop" <<endl;
 
-//                uv_idle_init(hw->loop, &hw->idler);
-//                uv_idle_start(&hw->idler, &hw->timer_cb);
                 hw->connected = 1;
 
-//                uv_run(hw->loop);
             } else {
                 cout << "error connecting" << endl;
             }
         }
         return Undefined();
     }
-//    static void timer_cb(uv_timer_t* timer, int stat){
-//    static void timer_cb(uv_timer_t* timer, int stat){
-    static void timer_cb(uv_work_t* req){
+    static void work_cb(uv_work_t* req){
 
-//        uv_timer_t* timer = ((uv_timer_t *) arg);
         NodeEPOCDriver *hw = static_cast<NodeEPOCDriver *>(req->data);
-
-
-//        NodeEPOCDriver* hw = static_cast<NodeEPOCDriver*>(timer);
-
-//        NodeEPOCDriver* hw = static_cast<NodeEPOCDriver*>(timer->data);
-
-//        if (hw->run ==1){
         while (true){
             if (hw->connected == 1){
                 EmoEngineEventHandle eEvent = EE_EmoEngineEventCreate();
@@ -222,8 +185,6 @@ public:
 
                     if (eventType == EE_EmoStateUpdated){
                         EE_EmoEngineEventGetEmoState(eEvent, eState);
-
-//                cout << "fire" <<endl;
 
                         baton_t* baton = new baton_t();
                         baton->hw = hw;
@@ -263,37 +224,16 @@ public:
                         req2->data = baton;
 
                         int status = uv_queue_work(hw->loop, req2, process, after_process);
-//                        uv_async_init(hw->loop, &hw->async, after_process);
-//                        hw->async.data = hw;
-//                        uv_async_send(&hw->async);
-
-
-                   //     uv_run_once(hw->work);
                         assert(status == 0);
                      }
                 }
                 EE_EmoStateFree(eState);
                 EE_EmoEngineEventFree(eEvent);
             }
-           // hw->Ref();
-
-//sleep(1);
-
         }
     }
 
-    static void runwork(uv_work_t* req){
-        NodeEPOCDriver *hw = static_cast<NodeEPOCDriver *>(req->data);
-        uv_run(hw->work);
-    }
-
-    static void after_timer(uv_work_t* req) {
-  //                  cout << "after timer" <<endl;
-//        NodeEPOCDriver *hw = static_cast<NodeEPOCDriver *>(req->data);
-//        if (hw->run ==1){
-//            int status = uv_queue_work(hw->loop, req, timer_cb, after_timer);
-//            assert(status == 0);
-//        }
+    static void after_work(uv_work_t* req) {
     }
 
     static Handle<Value> disconnect(const Arguments& args){
@@ -302,14 +242,6 @@ public:
             cout << "disconnected from epoc event loop" << endl;
 
             hw->run=0;
-
-//            uv_thread_join(&hw->thread);
-
-//            uv_timer_stop(&hw->timer);
-         //   uv_close((uv_handle_t*)&hw->timer);
-//            uv_unref((uv_handle_t *)&hw->g_async);
-            if (hw->profile)
-                delete[] hw->profile;
             hw->connected = 0;
             hw->cb.Dispose();
             EE_EngineDisconnect();
@@ -323,19 +255,14 @@ public:
     }
     
     static void after_process(uv_work_t* req) {
-//    static void after_process(uv_async_t* req, int status) {
         HandleScope scope;
         baton_t *baton = static_cast<baton_t *>(req->data);
-     //   baton->hw->Unref();
-
 
         Local<Value> argv[1];
 
         Local<Object> obj = Object::New();
 
         if (baton->update){
-
-//            cout<<"update!"<<endl;
 
             // these will be the fields from the event
             obj->Set(String::NewSymbol("time"), Number::New(baton->timestamp));
@@ -369,7 +296,6 @@ public:
                 FatalException(try_catch);
             }
         }
-//        uv_close((uv_handle_t*) req, NULL);
         delete baton;
     }
 
