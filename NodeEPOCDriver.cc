@@ -35,6 +35,9 @@ private:
   int connected;
   unsigned int userID;
   int run;
+  int profileLoaded;
+  int option;
+  string profileFile;
   uv_loop_t* loop;
   uv_loop_t* work;
   Persistent<Function> cb;
@@ -59,7 +62,7 @@ public:
   }
 
   NodeEPOCDriver() :
-    connected(0), userID(0), run(0)
+    connected(0), userID(0), run(0), profileLoaded(0), option(0)
   {
       work = uv_loop_new();
       loop = uv_default_loop();
@@ -109,51 +112,41 @@ public:
         REQ_STRING_ARG(0,param0);
         REQ_FUN_ARG(1, cb);
 
-        string profileFile = string(*param0);
-
-        int option = 0;
+        hw->profileFile = string(*param0);
+//        string profile2 = "/Users/jpleibundguth/Library/Application Support/Emotiv/Profiles/jleibund.emu";
+        hw->option = 0;
         // get the option for engine or remote connect
         if (args.Length()==3 && args[2]->IsInt32()){
             Local<Integer> i = Local<Integer>::Cast(args[2]);
             int selected = (int)(i->Int32Value());
             if (selected != 0){
-                option = 1;
+                hw->option = 1;
             }
         }
+        hw->cb = Persistent<Function>::New(cb);
 
+        reconnect(hw);
+        return Undefined();
+    }
+    static void reconnect(NodeEPOCDriver* hw){
         // read arg for option, engine or remote..
         // read option for profile
-        if (hw->connected == 0){
+        hw->connected = 0;
+        while (hw->connected == 0){
 
-            bool connect = false;
-            switch(option){
+            switch(hw->option){
                 case 0: {
-                    connect= (EE_EngineConnect() == EDK_OK);
+                    hw->connected = (EE_EngineConnect() == EDK_OK)? 1 : 0;
                     break;
                 }
                 case 1: {
-                    connect= (EE_EngineRemoteConnect("127.0.0.1",1726)==EDK_OK);
+                    hw->connected = (EE_EngineRemoteConnect("127.0.0.1",1726)==EDK_OK)? 1: 0;
                     break;
                 }
                 default: {break;}
             }
-
-            if (connect){
-                // read in the profile
-                int error = EE_LoadUserProfile(hw->userID, profileFile.c_str());
-                if (error == 0){
-                    cout << "opened profile: "<<profileFile << endl;
-
-                    unsigned long activeActions = 0;
-                    EE_CognitivGetActiveActions(hw->userID, &activeActions);
-
-                    cout << "active actions: " << activeActions << endl;
-
-                } else {
-                    cout << "error: "<< error << " could not open profile:" <<profileFile <<endl;
-                }
-
-                hw->cb = Persistent<Function>::New(cb);
+            if (hw->connected == 1){
+                cout << "connected to emotiv" <<endl;
                 uv_work_t *req = new uv_work_t();
                 req->data = hw;
                 hw->run=1;
@@ -162,28 +155,53 @@ public:
                 assert(status == 0);
 
                 cout << "starting epoc event loop" <<endl;
-
-                hw->connected = 1;
-
-            } else {
-                cout << "error connecting" << endl;
             }
+
         }
-        return Undefined();
     }
+
+    static void loadUser(NodeEPOCDriver* hw){
+        bool errorOnce = true;
+        while (hw->profileLoaded == 0){
+            int error = EE_LoadUserProfile(hw->userID, hw->profileFile.c_str());
+            if (error == 0){
+                cout << "opened profile: "<<hw->profileFile << endl;
+
+                unsigned long activeActions = 0;
+                EE_CognitivGetActiveActions(hw->userID, &activeActions);
+
+                cout << "active actions: " << activeActions << " "<< hw->profileLoaded << endl;
+                hw->profileLoaded = 1;
+            } else if (errorOnce) {
+                cout << "error: "<< error << " either dongle is disconnected or could not open profile:" <<hw->profileFile <<endl;
+            }
+            errorOnce = false;
+        }
+    }
+
     static void work_cb(uv_work_t* req){
 
         NodeEPOCDriver *hw = static_cast<NodeEPOCDriver *>(req->data);
         while (true){
             if (hw->connected == 1){
+                // read in the profile
+
+                loadUser(hw);
+
                 EmoEngineEventHandle eEvent = EE_EmoEngineEventCreate();
                 EmoStateHandle eState = EE_EmoStateCreate();
                 int state = EE_EngineGetNextEvent(eEvent);
                 if (state == EDK_OK) {
                      EE_Event_t eventType = EE_EmoEngineEventGetType(eEvent);
-                     EE_EmoEngineEventGetUserId(eEvent, &hw->userID);
 
-                    if (eventType == EE_EmoStateUpdated){
+//                     unsigned int userid = 0;
+//                     EE_EmoEngineEventGetUserId(eEvent, &userid);
+//                     EE_GetUserProfile(hw->userID, eEvent);
+                    //EE_Event_t eventType  = EE_EmoEngineEventGetType(eEvent);
+                    if (eventType == EE_UserRemoved){
+                        hw->profileLoaded = 0;
+                        loadUser(hw);
+                    } else  if (eventType == EE_EmoStateUpdated){
                         EE_EmoEngineEventGetEmoState(eEvent, eState);
 
                         baton_t* baton = new baton_t();
