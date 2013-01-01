@@ -162,18 +162,17 @@ public:
 
     static void loadUser(NodeEPOCDriver* hw){
         bool errorOnce = true;
-        while (hw->profileLoaded == 0){
+        if (hw->profileLoaded == 0){
             int error = EE_LoadUserProfile(hw->userID, hw->profileFile.c_str());
             if (error == 0){
-                cout << "opened profile: "<<hw->profileFile << endl;
-
                 unsigned long activeActions = 0;
                 EE_CognitivGetActiveActions(hw->userID, &activeActions);
 
-                cout << "active actions: " << activeActions << " "<< hw->profileLoaded << endl;
+                cout << "connected and opened profile '"<<hw->profileFile << "' with " << activeActions << "active actions" << endl;
+
                 hw->profileLoaded = 1;
             } else if (errorOnce) {
-                cout << "error: "<< error << " either dongle is disconnected or could not open profile:" <<hw->profileFile <<endl;
+                cout << "condition: "<< error << ". either dongle is disconnected or could not find profile '" <<hw->profileFile << "'" <<endl;
             }
             errorOnce = false;
         }
@@ -182,11 +181,11 @@ public:
     static void work_cb(uv_work_t* req){
 
         NodeEPOCDriver *hw = static_cast<NodeEPOCDriver *>(req->data);
+        loadUser(hw);
         while (true){
             if (hw->connected == 1){
                 // read in the profile
 
-                loadUser(hw);
 
                 EmoEngineEventHandle eEvent = EE_EmoEngineEventCreate();
                 EmoStateHandle eState = EE_EmoStateCreate();
@@ -200,6 +199,8 @@ public:
                     //EE_Event_t eventType  = EE_EmoEngineEventGetType(eEvent);
                     if (eventType == EE_UserRemoved){
                         hw->profileLoaded = 0;
+                        cout << "the epoc dongle is disconnected, please reconnect" <<endl;
+                    } else if (eventType == EE_UserAdded) {
                         loadUser(hw);
                     } else  if (eventType == EE_EmoStateUpdated){
                         EE_EmoEngineEventGetEmoState(eEvent, eState);
