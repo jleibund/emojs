@@ -40,6 +40,7 @@ hi.connect('/Users/jpleibundguth/Library/Application Support/Emotiv/Profiles/jle
     if (e.shortTermExcitement) console.log('Short Term Excitement: ', e.eyebrow);
     if (e.longTermExcitement) console.log('Long Term Excitement: ', e.eyebrow);
     if (e.engagementOrBoredom) console.log('Engagement or Boredom: ', e.eyebrow);
+    console.log('gyro', e.gyroX+':'+ e.gyroY)
 
 });
 

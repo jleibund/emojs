@@ -56,6 +56,7 @@ public:
 
       NODE_SET_PROTOTYPE_METHOD(s_ct, "connect", connect);
       NODE_SET_PROTOTYPE_METHOD(s_ct, "disconnect", disconnect);
+      NODE_SET_PROTOTYPE_METHOD(s_ct, "rezero", rezero);
 
     target->Set(String::NewSymbol("NodeEPOCDriver"),
                 s_ct->GetFunction());
@@ -77,6 +78,8 @@ public:
         EmoEngineEventHandle* eEvent;
         EmoStateHandle* eState;
         bool update;
+        int gyroX;
+        int gyroY;
         int cog;
         float cog_power;
         int blink;
@@ -182,6 +185,7 @@ public:
 
         NodeEPOCDriver *hw = static_cast<NodeEPOCDriver *>(req->data);
         loadUser(hw);
+        EE_HeadsetGyroRezero(hw->userID);
         while (true){
             if (hw->connected == 1){
                 // read in the profile
@@ -208,6 +212,7 @@ public:
                         baton_t* baton = new baton_t();
                         baton->hw = hw;
                         baton->timestamp = ES_GetTimeFromStart(eState);
+                        EE_HeadsetGetGyroDelta(hw->userID, &baton->gyroX, &baton->gyroY);
                         baton->cog = static_cast<int>(ES_CognitivGetCurrentAction(eState));
                         baton->cog_power = ES_CognitivGetCurrentActionPower(eState);
                         baton->blink = ES_ExpressivIsBlink(eState);
@@ -268,6 +273,16 @@ public:
         return Undefined();
     }
 
+    static Handle<Value> rezero(const Arguments& args){
+        NodeEPOCDriver* hw = ObjectWrap::Unwrap<NodeEPOCDriver>(args.This());
+        if (hw->connected == 1){
+            cout << "rezero the gryo" << endl;
+
+            EE_HeadsetGyroRezero(hw->userID);
+        }
+        return Undefined();
+    }
+
     
     static void process(uv_work_t* req)
     {
@@ -286,6 +301,8 @@ public:
             // these will be the fields from the event
             obj->Set(String::NewSymbol("time"), Number::New(baton->timestamp));
             obj->Set(String::NewSymbol("userId"), Number::New(baton->hw->userID));
+            obj->Set(String::NewSymbol("gyroX"), Number::New(baton->gyroX));
+            obj->Set(String::NewSymbol("gyroY"), Number::New(baton->gyroY));
             obj->Set(String::NewSymbol("wirelessSignalStatus"),  Number::New(2));
             obj->Set(String::NewSymbol("blink"),  Number::New(baton->blink));
             obj->Set(String::NewSymbol("winkLeft"),  Number::New(baton->winkLeft));
