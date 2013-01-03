@@ -168,7 +168,7 @@ public:
                 unsigned long activeActions = 0;
                 EE_CognitivGetActiveActions(hw->userID, &activeActions);
 
-                cout << "connected and opened profile '"<<hw->profileFile << "' with " << activeActions << "active actions" << endl;
+                cout << "connected and opened profile '"<<hw->profileFile << "' with " << activeActions << " active actions" << endl;
 
                 hw->profileLoaded = 1;
             } else if (errorOnce) {
