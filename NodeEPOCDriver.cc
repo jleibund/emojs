@@ -267,6 +267,7 @@ public:
 
             hw->run=0;
             hw->connected = 0;
+            hw->profileLoaded = 0;
             hw->cb.Dispose();
             EE_EngineDisconnect();
         }

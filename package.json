@@ -7,6 +7,9 @@
         "type": "git",
         "url": "git@github.com:jleibund/emojs"
     },
+    "dependencies" :{
+        "underscore" : "latest"
+    },
     "optionalDependencies": {},
     "engines": {
     "node": "*"

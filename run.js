@@ -1,6 +1,6 @@
 var m = require('./build/Release/emojs');
 
-hi = new m.NodeEPOCDriver();
+hi = new m.NodeEPOCDriver(), _ = require('underscore');
 
 var count = 0;
 
@@ -21,28 +21,30 @@ var cogMap = {
     0X2000: 'DISAPPEAR'
 };
 
+var counter = 0;
+//hi.connect('/Users/jpleibundguth/Library/Application Support/Emotiv/Profiles/jleibund.emu', _.throttle(_.after(1,function(e){
+    hi.connect(null, _.throttle(_.after(1,function(e){
 
-hi.connect('/Users/jpleibundguth/Library/Application Support/Emotiv/Profiles/jleibund.emu',function(e){
-    if (e.blink) console.log('Blink');
-    if (e.lookLeft) console.log('LookLeft');
-    if (e.lookRight) console.log('LookRight');
-    if (e.winkLeft) console.log('WinkLeft');
-    if (e.winkRight) console.log('WinkRight');
-    if (e.cognitivAction >1) console.log('Cog: ',cogMap[e.cognitivAction], ' Power='+ e.cognitivPower);
+    if (e.blink) console.log('Blink',counter++);
+//    if (e.lookLeft) console.log('LookLeft');
+//    if (e.lookRight) console.log('LookRight');
+//    if (e.winkLeft) console.log('WinkLeft');
+//    if (e.winkRight) console.log('WinkRight');
+//    if (e.cognitivAction >1) console.log('Cog: ',cogMap[e.cognitivAction], ' Power='+ e.cognitivPower);
+//
+//    if (e.eyebrow) console.log('Eyebrow: ', e.eyebrow);
+//    if (e.furrow) console.log('Furrow: ', e.furrow);
+//    if (e.smile) console.log('Smile: ', e.smile);
+//    if (e.clench) console.log('Clench: ', e.clench);
+//    if (e.smirkLeft) console.log('SmirkLeft: ', e.eyebrow);
+//    if (e.smirkRight) console.log('SmirkRight: ', e.eyebrow);
+//    if (e.laugh) console.log('Laugh: ', e.eyebrow);
+//    if (e.shortTermExcitement) console.log('Short Term Excitement: ', e.eyebrow);
+//    if (e.longTermExcitement) console.log('Long Term Excitement: ', e.eyebrow);
+//    if (e.engagementOrBoredom) console.log('Engagement or Boredom: ', e.eyebrow);
+//    console.log('gyro', e.gyroX+':'+ e.gyroY)
 
-    if (e.eyebrow) console.log('Eyebrow: ', e.eyebrow);
-    if (e.furrow) console.log('Furrow: ', e.furrow);
-    if (e.smile) console.log('Smile: ', e.smile);
-    if (e.clench) console.log('Clench: ', e.clench);
-    if (e.smirkLeft) console.log('SmirkLeft: ', e.eyebrow);
-    if (e.smirkRight) console.log('SmirkRight: ', e.eyebrow);
-    if (e.laugh) console.log('Laugh: ', e.eyebrow);
-    if (e.shortTermExcitement) console.log('Short Term Excitement: ', e.eyebrow);
-    if (e.longTermExcitement) console.log('Long Term Excitement: ', e.eyebrow);
-    if (e.engagementOrBoredom) console.log('Engagement or Boredom: ', e.eyebrow);
-    console.log('gyro', e.gyroX+':'+ e.gyroY)
-
-});
+}),400));
 
 
 //   if (count > 5)
