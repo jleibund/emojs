@@ -23,9 +23,24 @@ var cogMap = {
 
 var counter = 0;
 //hi.connect('/Users/jpleibundguth/Library/Application Support/Emotiv/Profiles/jleibund.emu', _.throttle(_.after(1,function(e){
-    hi.connect(null, _.throttle(_.after(1,function(e){
+hi.connect('/Users/jpleibundguth/Library/Application Support/Emotiv/Profiles/jleibund.emu', _.throttle(function(e){
 
-    if (e.blink) console.log('Blink',counter++);
+//    if (e.blink) console.log('Blink',counter++);
+
+    console.log('loop', counter++)
+
+    if (counter > 3){
+
+        hi.disconnect(function(){
+
+            hi.connect('/Users/jpleibundguth/Library/Application Support/Emotiv/Profiles/jleibund.emu', function(e2){
+                console.log('poop')
+            });
+
+        });
+    }
+
+
 //    if (e.lookLeft) console.log('LookLeft');
 //    if (e.lookRight) console.log('LookRight');
 //    if (e.winkLeft) console.log('WinkLeft');
@@ -44,7 +59,7 @@ var counter = 0;
 //    if (e.engagementOrBoredom) console.log('Engagement or Boredom: ', e.eyebrow);
 //    console.log('gyro', e.gyroX+':'+ e.gyroY)
 
-}),400));
+},1000));
 
 
 //   if (count > 5)

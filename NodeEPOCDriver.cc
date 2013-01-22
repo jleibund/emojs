@@ -40,7 +40,9 @@ private:
   string profileFile;
   uv_loop_t* loop;
   uv_loop_t* work;
+  uv_rwlock_t lock;
   Persistent<Function> cb;
+  Persistent<Function> dcb;
 public:
 
   static Persistent<FunctionTemplate> s_ct;
@@ -67,10 +69,14 @@ public:
   {
       work = uv_loop_new();
       loop = uv_default_loop();
+      uv_rwlock_init(&lock);
   }
 
   ~NodeEPOCDriver()
   {
+      uv_rwlock_destroy(&lock);
+      EE_EngineDisconnect();
+
   }
 
     struct baton_t {
@@ -115,8 +121,8 @@ public:
         REQ_STRING_ARG(0,param0);
         REQ_FUN_ARG(1, cb);
 
+        uv_rwlock_wrlock(&hw->lock);
         hw->profileFile = string(*param0);
-//        string profile2 = "/Users/jpleibundguth/Library/Application Support/Emotiv/Profiles/jleibund.emu";
         hw->option = 0;
         // get the option for engine or remote connect
         if (args.Length()==3 && args[2]->IsInt32()){
@@ -127,14 +133,15 @@ public:
             }
         }
         hw->cb = Persistent<Function>::New(cb);
-
         reconnect(hw);
+
+        uv_rwlock_wrunlock(&hw->lock);
+
         return Undefined();
     }
     static void reconnect(NodeEPOCDriver* hw){
         // read arg for option, engine or remote..
         // read option for profile
-        hw->connected = 0;
         while (hw->connected == 0){
 
             switch(hw->option){
@@ -148,23 +155,30 @@ public:
                 }
                 default: {break;}
             }
-            if (hw->connected == 1){
-                cout << "connected to emotiv" <<endl;
-                uv_work_t *req = new uv_work_t();
-                req->data = hw;
-                hw->run=1;
+                                    cout << "7" <<endl;
 
-                int status = uv_queue_work(hw->loop, req, work_cb, after_work);
-                assert(status == 0);
-
-                cout << "starting epoc event loop" <<endl;
-            }
 
         }
+
+        if (hw->connected == 1){
+            cout << "connected to emotiv" <<endl;
+            uv_work_t *req = new uv_work_t();
+            req->data = hw;
+            hw->run=1;
+
+            int status = uv_queue_work(hw->loop, req, work_cb, after_work);
+            assert(status == 0);
+
+            cout << "starting epoc event loop" <<endl;
+        }
+
+//        uv_rwlock_wrunlock(&hw->lock);
+
     }
 
     static void loadUser(NodeEPOCDriver* hw){
         bool errorOnce = true;
+
         if (hw->profileLoaded == 0){
             int error = EE_LoadUserProfile(hw->userID, hw->profileFile.c_str());
             if (error == 0){
@@ -179,17 +193,27 @@ public:
             }
             errorOnce = false;
         }
+
     }
 
     static void work_cb(uv_work_t* req){
 
         NodeEPOCDriver *hw = static_cast<NodeEPOCDriver *>(req->data);
+
+        uv_rwlock_wrlock(&hw->lock);
         loadUser(hw);
         EE_HeadsetGyroRezero(hw->userID);
-        while (true){
-            if (hw->connected == 1){
-                // read in the profile
+        uv_rwlock_wrunlock(&hw->lock);
 
+        while (true){
+
+            uv_rwlock_rdlock(&hw->lock);
+            bool connected = (hw->connected == 1);
+            bool run = (hw->run == 1);
+            uv_rwlock_rdunlock(&hw->lock);
+
+            if (connected && run){
+                // read in the profile
 
                 EmoEngineEventHandle eEvent = EE_EmoEngineEventCreate();
                 EmoStateHandle eState = EE_EmoStateCreate();
@@ -202,17 +226,29 @@ public:
 //                     EE_GetUserProfile(hw->userID, eEvent);
                     //EE_Event_t eventType  = EE_EmoEngineEventGetType(eEvent);
                     if (eventType == EE_UserRemoved){
+
+                        uv_rwlock_wrlock(&hw->lock);
                         hw->profileLoaded = 0;
+                        uv_rwlock_wrunlock(&hw->lock);
+
                         cout << "the epoc dongle is disconnected, please reconnect" <<endl;
                     } else if (eventType == EE_UserAdded) {
+
+                        uv_rwlock_wrlock(&hw->lock);
                         loadUser(hw);
+                        uv_rwlock_wrunlock(&hw->lock);
+
                     } else  if (eventType == EE_EmoStateUpdated){
                         EE_EmoEngineEventGetEmoState(eEvent, eState);
 
                         baton_t* baton = new baton_t();
                         baton->hw = hw;
                         baton->timestamp = ES_GetTimeFromStart(eState);
+
+                        uv_rwlock_wrlock(&hw->lock);
                         EE_HeadsetGetGyroDelta(hw->userID, &baton->gyroX, &baton->gyroY);
+                        uv_rwlock_wrunlock(&hw->lock);
+
                         baton->cog = static_cast<int>(ES_CognitivGetCurrentAction(eState));
                         baton->cog_power = ES_CognitivGetCurrentActionPower(eState);
                         baton->blink = ES_ExpressivIsBlink(eState);
@@ -253,34 +289,79 @@ public:
                 }
                 EE_EmoStateFree(eState);
                 EE_EmoEngineEventFree(eEvent);
+            } else {
+                break;
             }
         }
     }
 
     static void after_work(uv_work_t* req) {
+//        baton_t *baton = static_cast<baton_t *>(req->data);
+        NodeEPOCDriver *hw = static_cast<NodeEPOCDriver *>(req->data);
+
+            cout << "after work loop" << endl;
+
+        uv_rwlock_wrlock(&hw->lock);
+
+        hw->profileLoaded = 0;
+        hw->userID = 0;
+
+        Local<Value> argv[0];
+        hw->cb.Dispose();
+
+        uv_rwlock_wrunlock(&hw->lock);
+
+        TryCatch try_catch;
+
+        if (hw->dcb != Null())
+            hw->dcb->Call(Context::GetCurrent()->Global(), 0, argv);
+
+        if (try_catch.HasCaught()) {
+            FatalException(try_catch);
+        }
+
     }
 
     static Handle<Value> disconnect(const Arguments& args){
-        NodeEPOCDriver* hw = ObjectWrap::Unwrap<NodeEPOCDriver>(args.This());
-        if (hw->connected == 1){
-            cout << "disconnected from epoc event loop" << endl;
+        REQ_FUN_ARG(0, dcb);
 
-            hw->run=0;
-            hw->connected = 0;
-            hw->profileLoaded = 0;
-            hw->cb.Dispose();
-            EE_EngineDisconnect();
+        NodeEPOCDriver* hw = ObjectWrap::Unwrap<NodeEPOCDriver>(args.This());
+        uv_rwlock_rdlock(&hw->lock);
+        bool connected = (hw->connected == 1);
+        bool run = (hw->run ==1);
+        uv_rwlock_rdunlock(&hw->lock);
+
+        if (connected && run){
+
+
+            uv_rwlock_wrlock(&hw->lock);
+            if (hw->dcb != Null())
+                hw->dcb.Dispose();
+            hw->dcb = Persistent<Function>::New(dcb);
+            hw->run = 0;
+            uv_rwlock_wrunlock(&hw->lock);
+
+
+
+            cout << "disconnecting from epoc event loop" << endl;
+
         }
         return Undefined();
     }
 
     static Handle<Value> rezero(const Arguments& args){
         NodeEPOCDriver* hw = ObjectWrap::Unwrap<NodeEPOCDriver>(args.This());
-        if (hw->connected == 1){
+
+        uv_rwlock_wrlock(&hw->lock);
+        bool connected = (hw->connected == 1);
+        bool run = (hw->run ==1);
+
+        if (connected && run){
             cout << "rezero the gryo" << endl;
 
             EE_HeadsetGyroRezero(hw->userID);
         }
+        uv_rwlock_wrunlock(&hw->lock);
         return Undefined();
     }
 
@@ -327,7 +408,8 @@ public:
 
             TryCatch try_catch;
 
-            baton->hw->cb->Call(Context::GetCurrent()->Global(), 1, argv);
+            if (baton->hw->cb != Null())
+                baton->hw->cb->Call(Context::GetCurrent()->Global(), 1, argv);
 
             if (try_catch.HasCaught()) {
                 FatalException(try_catch);
