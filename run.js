@@ -23,11 +23,13 @@ var cogMap = {
 
 var counter = 0;
 //hi.connect('/Users/jpleibundguth/Library/Application Support/Emotiv/Profiles/jleibund.emu', _.throttle(_.after(1,function(e){
-hi.connect('/Users/jpleibundguth/Library/Application Support/Emotiv/Profiles/jleibund.emu', _.throttle(function(e){
+hi.connect('', _.throttle(function(e){
 
 //    if (e.blink) console.log('Blink',counter++);
 
     console.log('loop', counter++)
+
+    hi.rezero();
 
     if (counter > 3){
 
