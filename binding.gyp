@@ -36,10 +36,10 @@
                     },
                      "link_settings": {
                          "libraries": [
-                          "/usr/local/lib/libedk.so",
-                          "/usr/local/lib/libedk.1.so",
-                          "/usr/local/lib/libedk_ultils_mac.so",
-                          "/usr/local/lib/libiomp5.so"
+                          "/usr/local/lib/libedk.so.1",
+                          "/usr/local/lib/libhal.so.1",
+                          "/usr/local/lib/libedk_utils.so",
+                          "/usr/local/lib/libqwt.so.5"
                          ]
                      }
                  }]
