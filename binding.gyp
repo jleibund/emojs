@@ -36,10 +36,10 @@
                     },
                      "link_settings": {
                          "libraries": [
-                          "/usr/local/lib/libedk.dylib",
-                          "/usr/local/lib/libedk.1.dylib",
-                          "/usr/local/lib/libedk_ultils_mac.dylib",
-                          "/usr/local/lib/libiomp5.dylib"
+                          "/usr/local/lib/libedk.so",
+                          "/usr/local/lib/libedk.1.so",
+                          "/usr/local/lib/libedk_ultils_mac.so",
+                          "/usr/local/lib/libiomp5.so"
                          ]
                      }
                  }]
